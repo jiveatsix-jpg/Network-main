@@ -783,7 +783,7 @@
       trust: n.trust || 0,
       status: STATUSES.includes(n.status) ? n.status : 'desconocido',
       tags: Array.isArray(n.tags) ? n.tags : [],
-      photo: n.photo || null,
+      photo: /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(n.photo) ? n.photo : null,
       color: /^#[0-9a-f]{6}$/i.test(n.color) ? n.color : null,
       customFields: Array.isArray(n.customFields) ? n.customFields : [],
       log: Array.isArray(n.log) ? n.log : (n.notes ? [{id:uid('log'), date:n.updated||Date.now(), text:n.notes}] : []),
@@ -1071,7 +1071,7 @@
       div.style.left = node.x + 'px';
       div.style.top = node.y + 'px';
       if(node.color) div.style.setProperty('--node-color', node.color);
-      const photoHtml = node.photo ? '<img src="'+node.photo+'" alt="">' : '';
+      const photoHtml = node.photo ? '<img src="'+escapeHtml(node.photo)+'" alt="">' : '';
       div.innerHTML =
         '<div class="shape"><div class="shape-fill">'+photoHtml+'</div><span class="status-dot status-'+node.status+'"></span></div>'+
         '<div class="label">'+escapeHtml(node.name||'SIN NOMBRE')+'</div>';
@@ -1406,11 +1406,11 @@
     }).join('') + (showAll ? '' : '<div style="font-size:10px;color:var(--amber);margin-top:4px;">… y ' + (allConns.length-20) + ' más</div>') || '<div>Sin vínculos registrados.</div>';
 
     const avatarInner = node.photo
-      ? '<img src="'+node.photo+'" alt="">'
+      ? '<img src="'+escapeHtml(node.photo)+'" alt="">'
       : '<span>'+escapeHtml((node.name||'?').trim().charAt(0).toUpperCase() || '?')+'</span>';
 
     const customFieldsHtml = (node.customFields||[]).map(cf=>
-      '<div class="cf-row" data-cf-id="'+cf.id+'">'+
+      '<div class="cf-row" data-cf-id="'+escapeHtml(cf.id)+'">'+
         '<input type="text" class="cf-label" placeholder="Campo" value="'+escapeHtml(cf.label)+'">'+
         '<input type="text" class="cf-value" placeholder="Valor" value="'+escapeHtml(cf.value)+'">'+
         '<button class="cf-remove" type="button">✕</button>'+
@@ -1422,7 +1422,7 @@
       '<div class="log-entry">'+
         '<div class="log-date">'+formatDate(entry.date)+'</div>'+
         '<div class="log-text">'+escapeHtml(entry.text)+'</div>'+
-        '<button class="log-delete" type="button" data-log-id="'+entry.id+'">✕</button>'+
+        '<button class="log-delete" type="button" data-log-id="'+escapeHtml(entry.id)+'">✕</button>'+
       '</div>'
     ).join('') : '<div class="log-empty">Sin entradas todavía.</div>';
 
@@ -2452,11 +2452,13 @@
       html += '<div class="library-empty">Sin nodos en la biblioteca todavía.<br><br>Abre la ficha de un nodo y pulsa "GUARDAR EN BIBLIOTECA" para reutilizarlo en otras redes.</div>';
     } else {
       library.forEach(item=>{
-        html += '<div class="library-item" data-lib-id="'+item.id+'">'+
-          '<span class="glyph '+item.type+'"'+(item.color?' style="background:'+item.color+'"':'')+'></span>'+
+        const safeType = TYPES.includes(item.type) ? item.type : 'persona';
+        const safeColor = /^#[0-9a-f]{6}$/i.test(item.color) ? item.color : null;
+        html += '<div class="library-item" data-lib-id="'+escapeHtml(item.id)+'">'+
+          '<span class="glyph '+safeType+'"'+(safeColor?' style="background:'+safeColor+'"':'')+'></span>'+
           '<span class="library-name">'+escapeHtml(item.name||'SIN NOMBRE')+'</span>'+
-          '<button class="library-insert" data-lib-insert="'+item.id+'">INSERTAR</button>'+
-          '<button class="library-del" data-lib-del="'+item.id+'">✕</button>'+
+          '<button class="library-insert" data-lib-insert="'+escapeHtml(item.id)+'">INSERTAR</button>'+
+          '<button class="library-del" data-lib-del="'+escapeHtml(item.id)+'">✕</button>'+
         '</div>';
       });
     }
@@ -2509,10 +2511,10 @@
         '<button class="btn" id="btn-glossary-add">+ AÑADIR</button>';
     } else {
       glossaryBody.innerHTML = state.glossary.map(g=>
-        '<div class="glossary-row" data-gl-id="'+g.id+'">'+
-          '<span class="glossary-swatch" data-gl-swatch="'+g.id+'" style="background:'+g.color+'"></span>'+
-          '<input type="text" data-gl-label="'+g.id+'" placeholder="Significado..." value="'+escapeHtml(g.label)+'">'+
-          '<button class="glossary-del" data-gl-del="'+g.id+'">✕</button>'+
+        '<div class="glossary-row" data-gl-id="'+escapeHtml(g.id)+'">'+
+          '<span class="glossary-swatch" data-gl-swatch="'+escapeHtml(g.id)+'" style="background:'+g.color+'"></span>'+
+          '<input type="text" data-gl-label="'+escapeHtml(g.id)+'" placeholder="Significado..." value="'+escapeHtml(g.label)+'">'+
+          '<button class="glossary-del" data-gl-del="'+escapeHtml(g.id)+'">✕</button>'+
         '</div>'
       ).join('') + '<button class="btn" id="btn-glossary-add">+ AÑADIR</button>';
     }
