@@ -6,7 +6,7 @@
 <title>RED // OPS TRACKER</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg-deep:#0a0f0a;
@@ -434,11 +434,15 @@
   #btn-info-toggle.active{background:var(--amber);color:#16190b;border-color:var(--amber);}
   #info-tooltip-box{
     position:fixed;z-index:999;max-width:260px;padding:10px 12px;
-    background:var(--bg-panel2);color:var(--paper);border:var(--px) solid var(--amber);
-    box-shadow:3px 3px 0 rgba(0,0,0,.6);font-family:var(--body);font-size:15px;
+    background:var(--bg-panel2);color:var(--paper);border:var(--px) solid var(--cyan);
+    box-shadow:4px 4px 0 rgba(0,0,0,.7);font-family:'JetBrains Mono','Courier New',monospace;font-size:13px;
     line-height:1.4;pointer-events:none;
   }
   #info-tooltip-box[hidden]{display:none;}
+  .info-tooltip-label{
+    font-weight:bold;color:var(--red);border-bottom:2px solid var(--cyan);
+    margin-bottom:6px;padding-bottom:4px;
+  }
 
   /* ---------- FAB: nodo nuevo ---------- */
   #fab-wrap{
@@ -3226,12 +3230,27 @@
     infoEnsureBox().hidden = true;
   }
 
+  function infoLabelFor(el){
+    return (el.textContent || '').trim().slice(0, 40);
+  }
+
   function infoShowFor(el, x, y){
     const text = el.getAttribute('title');
     if(!text){ infoHide(); return; }
     infoCurrentEl = el;
     const box = infoEnsureBox();
-    box.textContent = text;
+    box.textContent = '';
+    const label = infoLabelFor(el);
+    if(label){
+      const labelEl = document.createElement('div');
+      labelEl.className = 'info-tooltip-label';
+      labelEl.textContent = label;
+      box.appendChild(labelEl);
+    }
+    const textEl = document.createElement('div');
+    textEl.className = 'info-tooltip-text';
+    textEl.textContent = text;
+    box.appendChild(textEl);
     box.hidden = false;
     infoPosition(x, y);
   }
