@@ -412,6 +412,25 @@
   #modal-box .row{display:flex;justify-content:flex-end;gap:8px;}
   #modal-box p{font-size:14px;color:var(--paper-dim);margin:0 0 14px;}
 
+  /* ---------- TUTORIAL ---------- */
+  #tutorial-overlay{
+    position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;
+    align-items:center;justify-content:center;z-index:95;
+  }
+  #tutorial-box{
+    position:relative;background:var(--bg-panel2);border:var(--px) solid #2563ff;
+    padding:24px;width:100%;max-width:420px;box-shadow:5px 5px 0 rgba(0,0,0,.6);
+  }
+  #tutorial-step-label{font-family:var(--pixel);font-size:9px;letter-spacing:2px;color:var(--paper-dim);margin:0 0 10px;}
+  #tutorial-title{font-family:var(--pixel);font-size:13px;letter-spacing:1px;color:#5c8bff;margin:0 0 14px;padding-right:26px;text-transform:uppercase;}
+  #tutorial-text{font-size:15px;line-height:1.5;color:var(--paper);margin:0 0 20px;min-height:90px;}
+  #tutorial-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  #tutorial-dots{display:flex;gap:6px;}
+  .tutorial-dot{width:9px;height:9px;background:var(--bg-deep);border:2px solid var(--border);}
+  .tutorial-dot.on{background:#2563ff;border-color:#2563ff;}
+  #tutorial-nav{display:flex;gap:8px;}
+  #tutorial-nav .btn:disabled{opacity:.35;cursor:not-allowed;}
+
   /* ---------- FAB: nodo nuevo ---------- */
   #fab-wrap{
     position:fixed;right:22px;bottom:22px;z-index:50;
@@ -459,7 +478,7 @@
   }
 
   @media print{
-    #console-bar, #archive-panel, #dossier-panel, #edge-bar, #path-bar, #zone-bar, #zone-draw-hint, #modal-overlay, #sweep, #minimap, #glossary-panel{display:none !important;}
+    #console-bar, #archive-panel, #dossier-panel, #edge-bar, #path-bar, #zone-bar, #zone-draw-hint, #modal-overlay, #tutorial-overlay, #sweep, #minimap, #glossary-panel{display:none !important;}
     #map-wrap{overflow:visible !important;height:auto !important;}
     #map{transform:none !important;background:none;}
     html, body{overflow:visible !important;height:auto !important;background:#fff;}
@@ -521,6 +540,7 @@
     </div>
     <button class="btn" id="btn-undo" style="font-size:15px;padding:4px 8px;">↩</button>
     <button class="btn" id="btn-redo" style="font-size:15px;padding:4px 8px;">↪</button>
+    <button class="btn" id="btn-help" style="font-size:15px;padding:4px 8px;" title="Ver tutorial">?</button>
 
     <div id="status-line">SISTEMA LISTO</div>
   </div>
@@ -611,6 +631,22 @@
 
   <div id="modal-overlay" class="hidden">
     <div id="modal-box"></div>
+  </div>
+
+  <div id="tutorial-overlay" class="hidden">
+    <div id="tutorial-box">
+      <button class="btn" id="btn-tutorial-close" style="position:absolute;top:10px;right:10px;padding:4px 8px;">✕</button>
+      <p id="tutorial-step-label"></p>
+      <h3 id="tutorial-title"></h3>
+      <p id="tutorial-text"></p>
+      <div id="tutorial-footer">
+        <div id="tutorial-dots"></div>
+        <div id="tutorial-nav">
+          <button class="btn" id="btn-tutorial-prev">ATRÁS</button>
+          <button class="btn" id="btn-tutorial-next">SIGUIENTE</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <input type="file" id="photo-input" class="hidden" accept="image/*">
@@ -3072,6 +3108,81 @@
     reader.readAsText(file);
   });
 
+  // ================= TUTORIAL =================
+  const TUTORIAL_SEEN_KEY = 'rot-tutorial-seen';
+
+  const TUTORIAL_STEPS = [
+    {
+      title: 'RED // OPS TRACKER',
+      text: 'Bienvenido al mapa táctico de contactos. Todo se guarda en este dispositivo, y puedes tener varias redes en pestañas distintas, arriba del mapa.'
+    },
+    {
+      title: 'CREAR Y MOVER NODOS',
+      text: 'El botón azul grande de abajo (o "+ NODO") crea un contacto, lugar u organización. Arrástralo para moverlo. Ctrl+clic o un rectángulo de arrastre sobre el mapa vacío selecciona varios nodos a la vez — puedes moverlos juntos o borrarlos con Supr.'
+    },
+    {
+      title: 'VINCULAR Y CAMINO',
+      text: '"VINCULAR" conecta dos nodos con una relación etiquetada (clic en el origen, clic en el destino). "CAMINO" calcula la ruta más corta entre dos nodos siguiendo los vínculos existentes.'
+    },
+    {
+      title: 'ZONAS',
+      text: '"+ ZONA" dibuja un área de color libre sobre el mapa, para agrupar visualmente una parte de la red. El menú "ZONAS" agrupa mostrar/ocultar nombres, seleccionar todas y ajustar su tamaño.'
+    },
+    {
+      title: 'FICHA DE CONTACTO',
+      text: 'Cada nodo tiene su ficha: foto, tipo, color, nivel de confianza, etiquetas, campos personalizados y un registro de eventos con fecha. Se abre solo al seleccionar un nodo.'
+    },
+    {
+      title: 'ARCHIVO, FILTROS Y BIBLIOTECA',
+      text: 'El panel de la izquierda (colapsable) lista todos los contactos, con búsqueda y orden. "FILTROS" acota por tipo, estado, confianza mínima o etiquetas. "BIBLIOTECA" guarda nodos para reutilizarlos en otra red.'
+    },
+    {
+      title: 'DATOS Y VISTA',
+      text: 'El menú "RED" exporta/importa en JSON, CSV o GeoJSON, imprime el mapa y cambia el skin de color. Abajo está el minimapa y el glosario, para anotar qué significa cada color que uses.'
+    }
+  ];
+
+  let tutorialStep = 0;
+  const tutorialOverlay = document.getElementById('tutorial-overlay');
+
+  function renderTutorialStep(){
+    const s = TUTORIAL_STEPS[tutorialStep];
+    document.getElementById('tutorial-step-label').textContent = 'PASO '+(tutorialStep+1)+' DE '+TUTORIAL_STEPS.length;
+    document.getElementById('tutorial-title').textContent = s.title;
+    document.getElementById('tutorial-text').textContent = s.text;
+    document.getElementById('btn-tutorial-prev').disabled = tutorialStep === 0;
+    document.getElementById('btn-tutorial-next').textContent = tutorialStep === TUTORIAL_STEPS.length-1 ? 'ENTENDIDO' : 'SIGUIENTE';
+    document.getElementById('tutorial-dots').innerHTML = TUTORIAL_STEPS.map((_,i)=>
+      '<span class="tutorial-dot'+(i===tutorialStep?' on':'')+'"></span>').join('');
+  }
+
+  function openTutorial(){
+    tutorialStep = 0;
+    renderTutorialStep();
+    tutorialOverlay.classList.remove('hidden');
+  }
+
+  function closeTutorial(){
+    tutorialOverlay.classList.add('hidden');
+    localStorage.setItem(TUTORIAL_SEEN_KEY, 'true');
+  }
+
+  function initTutorial(){
+    document.getElementById('btn-help').addEventListener('click', openTutorial);
+    document.getElementById('btn-tutorial-close').addEventListener('click', closeTutorial);
+    tutorialOverlay.addEventListener('click', (e)=>{ if(e.target === tutorialOverlay) closeTutorial(); });
+    document.getElementById('btn-tutorial-prev').addEventListener('click', ()=>{
+      tutorialStep = Math.max(0, tutorialStep-1);
+      renderTutorialStep();
+    });
+    document.getElementById('btn-tutorial-next').addEventListener('click', ()=>{
+      if(tutorialStep === TUTORIAL_STEPS.length-1){ closeTutorial(); return; }
+      tutorialStep = Math.min(TUTORIAL_STEPS.length-1, tutorialStep+1);
+      renderTutorialStep();
+    });
+    if(!localStorage.getItem(TUTORIAL_SEEN_KEY)) openTutorial();
+  }
+
   // ================= INIT =================
   async function init(){
     setStatus('CARGANDO RED...');
@@ -3086,6 +3197,7 @@
     } else {
       setStatus('RED CARGADA · GUARDANDO EN ESTE NAVEGADOR');
     }
+    initTutorial();
   }
   init();
 
