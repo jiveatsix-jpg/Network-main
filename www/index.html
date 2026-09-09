@@ -431,6 +431,15 @@
   #tutorial-nav{display:flex;gap:8px;}
   #tutorial-nav .btn:disabled{opacity:.35;cursor:not-allowed;}
 
+  #btn-info-toggle.active{background:var(--amber);color:#16190b;border-color:var(--amber);}
+  #info-tooltip-box{
+    position:fixed;z-index:999;max-width:260px;padding:10px 12px;
+    background:var(--bg-panel2);color:var(--paper);border:var(--px) solid var(--amber);
+    box-shadow:3px 3px 0 rgba(0,0,0,.6);font-family:var(--body);font-size:15px;
+    line-height:1.4;pointer-events:none;
+  }
+  #info-tooltip-box[hidden]{display:none;}
+
   /* ---------- FAB: nodo nuevo ---------- */
   #fab-wrap{
     position:fixed;right:22px;bottom:22px;z-index:50;
@@ -493,54 +502,55 @@
     <div id="brand"><span class="dot"></span> RED // OPS TRACKER</div>
 
     <div class="dropdown-wrap">
-      <button class="btn" id="btn-network-menu">RED: <span id="network-name-label">—</span> ▾</button>
+      <button class="btn" id="btn-network-menu" title="Cambiar entre tus redes guardadas, o crear una nueva">RED: <span id="network-name-label">—</span> ▾</button>
       <div id="network-menu" class="dropdown-panel hidden"></div>
     </div>
 
     <div class="toolbar-sep"></div>
 
-    <button class="btn cat-create" id="btn-toggle-archive">ARCHIVO</button>
-    <button class="btn cat-create" id="btn-add-node">+ NODO</button>
-    <button class="btn cat-create" id="btn-add-zone">+ ZONA</button>
+    <button class="btn cat-create" id="btn-toggle-archive" title="Muestra u oculta el panel lateral de contactos/nodos archivados">ARCHIVO</button>
+    <button class="btn cat-create" id="btn-add-node" title="Crea un nodo nuevo en el centro del lienzo">+ NODO</button>
+    <button class="btn cat-create" id="btn-add-zone" title="Crea una zona (área) nueva para agrupar nodos">+ ZONA</button>
 
     <div class="toolbar-sep"></div>
 
-    <button class="btn cat-mode" id="btn-link-mode">VINCULAR</button>
-    <button class="btn cat-mode" id="btn-path-mode">CAMINO</button>
+    <button class="btn cat-mode" id="btn-link-mode" title="Modo vincular: hacer clic en dos nodos para conectarlos con una línea">VINCULAR</button>
+    <button class="btn cat-mode" id="btn-path-mode" title="Modo camino: hacer clic en varios nodos en orden para trazar una ruta entre ellos">CAMINO</button>
 
     <div class="toolbar-sep"></div>
 
     <div class="dropdown-wrap">
-      <button class="btn cat-tools" id="btn-filters">FILTROS</button>
+      <button class="btn cat-tools" id="btn-filters" title="Filtra los nodos visibles por categoría o etiqueta">FILTROS</button>
       <div id="filter-panel" class="dropdown-panel hidden" style="width:230px;"></div>
     </div>
 
     <div class="dropdown-wrap">
-      <button class="btn cat-tools" id="btn-library">BIBLIOTECA</button>
+      <button class="btn cat-tools" id="btn-library" title="Biblioteca de nodos guardados, para reutilizarlos en cualquier red">BIBLIOTECA</button>
       <div id="library-panel" class="dropdown-panel hidden" style="width:240px;"></div>
     </div>
 
     <div class="dropdown-wrap">
-      <button class="btn cat-tools" id="btn-zone-tools">ZONAS ▾</button>
+      <button class="btn cat-tools" id="btn-zone-tools" title="Herramientas para las zonas: nombres, selección y tamaño">ZONAS ▾</button>
       <div id="zone-tools-panel" class="dropdown-panel hidden" style="width:190px;">
-        <button class="btn" id="btn-toggle-zone-labels" style="width:100%;margin-bottom:6px;">ZONAS: NOMBRES</button>
-        <button class="btn" id="btn-select-all-zones" style="width:100%;margin-bottom:6px;">SELECC. TODAS</button>
-        <button class="btn" id="btn-zone-shrink" style="width:100%;margin-bottom:6px;">− TAMAÑO</button>
-        <button class="btn" id="btn-zone-grow" style="width:100%;">+ TAMAÑO</button>
+        <button class="btn" id="btn-toggle-zone-labels" style="width:100%;margin-bottom:6px;" title="Muestra u oculta el nombre de cada zona sobre el lienzo">ZONAS: NOMBRES</button>
+        <button class="btn" id="btn-select-all-zones" style="width:100%;margin-bottom:6px;" title="Selecciona todas las zonas del lienzo a la vez">SELECC. TODAS</button>
+        <button class="btn" id="btn-zone-shrink" style="width:100%;margin-bottom:6px;" title="Reduce el tamaño de la zona seleccionada">− TAMAÑO</button>
+        <button class="btn" id="btn-zone-grow" style="width:100%;" title="Aumenta el tamaño de la zona seleccionada">+ TAMAÑO</button>
       </div>
     </div>
 
     <div class="toolbar-sep"></div>
 
     <div class="zoom-controls">
-      <button class="btn" id="btn-zoom-out">−</button>
+      <button class="btn" id="btn-zoom-out" title="Alejar (zoom out)">−</button>
       <span id="zoom-level">100%</span>
-      <button class="btn" id="btn-zoom-in">+</button>
-      <button class="btn" id="btn-zoom-reset">1:1</button>
+      <button class="btn" id="btn-zoom-in" title="Acercar (zoom in)">+</button>
+      <button class="btn" id="btn-zoom-reset" title="Restablecer el zoom al 100%">1:1</button>
     </div>
-    <button class="btn" id="btn-undo" style="font-size:15px;padding:4px 8px;">↩</button>
-    <button class="btn" id="btn-redo" style="font-size:15px;padding:4px 8px;">↪</button>
+    <button class="btn" id="btn-undo" style="font-size:15px;padding:4px 8px;" title="Deshacer el último cambio">↩</button>
+    <button class="btn" id="btn-redo" style="font-size:15px;padding:4px 8px;" title="Rehacer el último cambio deshecho">↪</button>
     <button class="btn" id="btn-help" style="font-size:15px;padding:4px 8px;" title="Ver tutorial">?</button>
+    <button class="btn" id="btn-info-toggle" style="font-size:15px;padding:4px 8px;" title="Activar/desactivar cuadros de información al pasar el mouse" aria-pressed="false">i</button>
 
     <div id="status-line">SISTEMA LISTO</div>
   </div>
@@ -3183,6 +3193,81 @@
     if(!localStorage.getItem(TUTORIAL_SEEN_KEY)) openTutorial();
   }
 
+  // ================= MODO INFO =================
+  // Reutiliza los `title` que ya tienen los botones del toolbar para mostrar
+  // un cuadro estilo pixel al pasar el mouse, en vez del tooltip nativo.
+  const INFO_MODE_KEY = 'rot-info-mode-on';
+  let infoModeActive = false;
+  let infoBoxEl = null;
+  let infoCurrentEl = null;
+
+  function infoEnsureBox(){
+    if(infoBoxEl) return infoBoxEl;
+    infoBoxEl = document.createElement('div');
+    infoBoxEl.id = 'info-tooltip-box';
+    infoBoxEl.hidden = true;
+    document.body.appendChild(infoBoxEl);
+    return infoBoxEl;
+  }
+
+  function infoPosition(x, y){
+    const box = infoEnsureBox();
+    const pad = 14;
+    const rect = box.getBoundingClientRect();
+    let left = x + pad, top = y + pad;
+    if(left + rect.width > window.innerWidth) left = x - rect.width - pad;
+    if(top + rect.height > window.innerHeight) top = y - rect.height - pad;
+    box.style.left = Math.max(4, left) + 'px';
+    box.style.top = Math.max(4, top) + 'px';
+  }
+
+  function infoHide(){
+    infoCurrentEl = null;
+    infoEnsureBox().hidden = true;
+  }
+
+  function infoShowFor(el, x, y){
+    const text = el.getAttribute('title');
+    if(!text){ infoHide(); return; }
+    infoCurrentEl = el;
+    const box = infoEnsureBox();
+    box.textContent = text;
+    box.hidden = false;
+    infoPosition(x, y);
+  }
+
+  function initInfoTooltip(){
+    const toggleBtn = document.getElementById('btn-info-toggle');
+    if(!toggleBtn) return;
+
+    document.addEventListener('mouseover', (e) => {
+      if(!infoModeActive) return;
+      const target = e.target.closest('[title]');
+      if(!target){ infoHide(); return; }
+      if(target !== infoCurrentEl) infoShowFor(target, e.clientX, e.clientY);
+    });
+    document.addEventListener('mousemove', (e) => {
+      if(!infoModeActive || !infoCurrentEl) return;
+      infoPosition(e.clientX, e.clientY);
+    });
+    document.addEventListener('mouseout', (e) => {
+      if(!infoModeActive) return;
+      const target = e.target.closest('[title]');
+      if(target && e.relatedTarget && target.contains(e.relatedTarget)) return;
+      infoHide();
+    });
+
+    const setActive = (on) => {
+      infoModeActive = on;
+      localStorage.setItem(INFO_MODE_KEY, on ? 'true' : 'false');
+      toggleBtn.classList.toggle('active', on);
+      toggleBtn.setAttribute('aria-pressed', String(on));
+      if(!on) infoHide();
+    };
+    toggleBtn.addEventListener('click', () => setActive(!infoModeActive));
+    setActive(localStorage.getItem(INFO_MODE_KEY) === 'true');
+  }
+
   // ================= INIT =================
   async function init(){
     setStatus('CARGANDO RED...');
@@ -3198,6 +3283,7 @@
       setStatus('RED CARGADA · GUARDANDO EN ESTE NAVEGADOR');
     }
     initTutorial();
+    initInfoTooltip();
   }
   init();
 
