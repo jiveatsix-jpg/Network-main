@@ -518,7 +518,7 @@
 
     <div class="toolbar-sep"></div>
 
-    <button class="btn cat-mode" id="btn-link-mode" title="Modo vincular: hacer clic en dos nodos para conectarlos con una línea">VINCULAR</button>
+    <button class="btn cat-mode" id="btn-link-mode" title="Modo enlazar: hacer clic en dos nodos para conectarlos con una línea (atajo: L)">ENLAZAR</button>
     <button class="btn cat-mode" id="btn-path-mode" title="Modo camino: hacer clic en varios nodos en orden para trazar una ruta entre ellos">CAMINO</button>
 
     <div class="toolbar-sep"></div>
@@ -599,6 +599,7 @@
       <div class="dossier-body" id="dossier-body"></div>
       <div class="dossier-footer">
         <button class="btn" id="btn-save-library" style="width:100%;margin-bottom:6px;">GUARDAR EN BIBLIOTECA</button>
+        <button class="btn" id="btn-duplicate-node" style="width:100%;margin-bottom:6px;">DUPLICAR NODO</button>
         <button class="btn danger" id="btn-delete-node" style="width:100%;">ELIMINAR NODO</button>
       </div>
     </aside>
@@ -789,6 +790,7 @@
     statuses: new Set(STATUSES),
     minTrust: 0,
     onlyOrphans: false,
+    hideEdgeLabels: false,
     tags: new Set()
   };
 
@@ -1142,6 +1144,22 @@
 
   function getNode(id){ return state.nodes.find(n=>n.id===id); }
 
+  /** Duplica un nodo (sin sus enlaces) desplazado del original, y lo selecciona. */
+  function duplicateNode(node){
+    pushUndo();
+    const clone = JSON.parse(JSON.stringify(node));
+    clone.id = uid('n');
+    clone.x = node.x + 30;
+    clone.y = node.y + 30;
+    clone.updated = Date.now();
+    state.nodes.push(clone);
+    renderAll();
+    selectNode(clone.id);
+    scheduleSave();
+    setStatus('NODO DUPLICADO');
+    return clone;
+  }
+
   // ================= NETWORK ANALYSIS =================
   function buildAdjacency(){
     const adj = new Map();
@@ -1324,17 +1342,19 @@
       line.addEventListener('click', (e)=>{ e.stopPropagation(); selectEdge(edge.id); });
       svg.appendChild(line);
 
-      const mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
-      const label = document.createElement('div');
-      let labelCls = 'edge-label';
-      if(edge.id===selectedEdgeId) labelCls += ' selected';
-      if(isPath) labelCls += ' path-highlight-label'; else if(dim) labelCls += ' dimmed';
-      label.className = labelCls;
-      label.style.left = mx+'px';
-      label.style.top = my+'px';
-      label.textContent = edge.label || 'CONOCE';
-      label.addEventListener('click', (e)=>{ e.stopPropagation(); selectEdge(edge.id); });
-      mapEl.appendChild(label);
+      if(!filters.hideEdgeLabels){
+        const mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
+        const label = document.createElement('div');
+        let labelCls = 'edge-label';
+        if(edge.id===selectedEdgeId) labelCls += ' selected';
+        if(isPath) labelCls += ' path-highlight-label'; else if(dim) labelCls += ' dimmed';
+        label.className = labelCls;
+        label.style.left = mx+'px';
+        label.style.top = my+'px';
+        label.textContent = edge.label || 'CONOCE';
+        label.addEventListener('click', (e)=>{ e.stopPropagation(); selectEdge(edge.id); });
+        mapEl.appendChild(label);
+      }
     });
   }
 
@@ -1485,7 +1505,7 @@
     const edgesTotal = state.edges.length;
     const orphans = state.nodes.filter(n=>computeDegree(n.id)===0).length;
     document.getElementById('archive-stats').textContent =
-      total + ' nodos · ' + edgesTotal + ' vínculos · ' + orphans + ' huérfanos';
+      total + ' nodos · ' + edgesTotal + ' enlaces · ' + orphans + ' huérfanos';
   }
 
   function centerOnNode(node){
@@ -1524,8 +1544,12 @@
       e.stopPropagation();
       div.setPointerCapture(e.pointerId);
       const multiClick = (e.ctrlKey || e.metaKey) && !linkMode && !pathMode;
+      // mismo gatillo que multiClick: si termina en click sin mover, alterna la
+      // selección múltiple (como siempre); si termina arrastrando, duplica.
+      const wantDuplicate = multiClick;
       startX = e.clientX; startY = e.clientY;
       dragging = false;
+      let duplicated = false;
 
       // si el nodo pulsado ya forma parte de una selección múltiple, arrastrar
       // TODOS los nodos seleccionados juntos; si no, solo este.
@@ -1540,6 +1564,23 @@
         const dx = (ev.clientX - startX)/zoom, dy = (ev.clientY - startY)/zoom;
         if(!dragging && (Math.abs(dx)>3 || Math.abs(dy)>3)){
           dragging = true;
+          if(wantDuplicate && !duplicated){
+            duplicated = true;
+            pushUndo();
+            const newIds = [];
+            dragEls = dragEls.map(d=>{
+              const clone = JSON.parse(JSON.stringify(d.n));
+              clone.id = uid('n');
+              clone.updated = Date.now();
+              state.nodes.push(clone);
+              newIds.push(clone.id);
+              return { id: clone.id, n: clone, el: null, origX: d.origX, origY: d.origY };
+            });
+            renderNodes(); renderList();
+            dragEls.forEach(d=>{ d.el = mapEl.querySelector('.node[data-id="'+d.id+'"]'); });
+            selectedNodeIds = new Set(newIds.length > 1 ? newIds : []);
+            selectedNodeId = newIds.length === 1 ? newIds[0] : null;
+          }
           dragEls.forEach(d=>{ if(d.el) d.el.classList.add('dragging'); });
         }
         if(dragging){
@@ -1556,7 +1597,11 @@
         div.removeEventListener('pointermove', onMove);
         div.removeEventListener('pointerup', onUp);
         dragEls.forEach(d=>{ if(d.el) d.el.classList.remove('dragging'); });
-        if(dragging){ pushUndo(); scheduleSave(); }
+        if(dragging){
+          if(!duplicated) pushUndo();
+          scheduleSave();
+          if(duplicated){ renderNodes(); renderList(); setStatus('NODO(S) DUPLICADO(S)'); }
+        }
         else if(multiClick){
           if(selectedNodeIds.has(node.id)) selectedNodeIds.delete(node.id);
           else selectedNodeIds.add(node.id);
@@ -1595,11 +1640,11 @@
     if(linkMode){
       if(!pendingLinkSource){
         pendingLinkSource = id;
-        setStatus('MODO VÍNCULO: selecciona el nodo destino');
+        setStatus('MODO ENLACE: selecciona el nodo destino');
         renderNodes();
       } else if(pendingLinkSource === id){
         pendingLinkSource = null;
-        setStatus('VÍNCULO CANCELADO');
+        setStatus('ENLACE CANCELADO');
         renderNodes();
       } else {
         openLinkModal(pendingLinkSource, id);
@@ -1643,7 +1688,7 @@
       const otherId = e.from===node.id ? e.to : e.from;
       const other = getNode(otherId);
       return '<div>&#8627; <span>'+escapeHtml(other ? other.name : '???')+'</span> — '+escapeHtml(e.label||'CONOCE')+'</div>';
-    }).join('') + (showAll ? '' : '<div style="font-size:10px;color:var(--amber);margin-top:4px;">… y ' + (allConns.length-20) + ' más</div>') || '<div>Sin vínculos registrados.</div>';
+    }).join('') + (showAll ? '' : '<div style="font-size:10px;color:var(--amber);margin-top:4px;">… y ' + (allConns.length-20) + ' más</div>') || '<div>Sin enlaces registrados.</div>';
 
     const avatarInner = node.photo
       ? '<img src="'+escapeHtml(node.photo)+'" alt="">'
@@ -1737,7 +1782,7 @@
         <div class="log-list">${logHtml}</div>
       </div>
       <div class="field">
-        <label>Vínculos (${degree})</label>
+        <label>Enlaces (${degree})</label>
         <div class="conn-list">${connections}</div>
       </div>
     `;
@@ -2131,6 +2176,16 @@
       return;
     }
 
+    // L = atajo para el modo enlazar — igual que clickear el botón ENLAZAR,
+    // pero nunca mientras se escribe en un campo.
+    if(e.key === 'l' || e.key === 'L'){
+      const tag = (e.target.tagName || '').toLowerCase();
+      if(tag==='input' || tag==='textarea' || tag==='select' || e.target.isContentEditable) return;
+      e.preventDefault();
+      document.getElementById('btn-link-mode').click();
+      return;
+    }
+
     // Supr/Backspace borra la selección — pero nunca mientras se escribe en
     // un campo (nombre, alias, notas...), donde Backspace es solo texto.
     if((e.key === 'Delete' || e.key === 'Backspace') && !linkMode && !pathMode && !zoneMode){
@@ -2139,11 +2194,11 @@
       if(selectedNodeIds.size > 0){
         e.preventDefault();
         const ids = new Set(selectedNodeIds);
-        openConfirmModal('Se eliminarán '+ids.size+' nodo(s) seleccionados y sus vínculos.', ()=>deleteNodes(ids));
+        openConfirmModal('Se eliminarán '+ids.size+' nodo(s) seleccionados y sus enlaces.', ()=>deleteNodes(ids));
       } else if(selectedNodeId){
         e.preventDefault();
         const node = getNode(selectedNodeId);
-        if(node) openConfirmModal('Se eliminará "'+node.name+'" y todos sus vínculos.', ()=>deleteNode(node.id));
+        if(node) openConfirmModal('Se eliminará "'+node.name+'" y todos sus enlaces.', ()=>deleteNode(node.id));
       }
     }
   });
@@ -2328,7 +2383,7 @@
   function openLinkModal(sourceId, targetId){
     const a = getNode(sourceId), b = getNode(targetId);
     modalBox.innerHTML = `
-      <h3>NUEVO VÍNCULO</h3>
+      <h3>NUEVO ENLACE</h3>
       <p>${escapeHtml(a.name)} &nbsp;&rarr;&nbsp; ${escapeHtml(b.name)}</p>
       <input id="link-label-input" type="text" placeholder="Tipo de relación (ej. amigo, familia...)">
       <div class="row">
@@ -2354,7 +2409,7 @@
       closeModal();
       pendingLinkSource = null;
       renderNodes();
-      setStatus('VÍNCULO CANCELADO');
+      setStatus('ENLACE CANCELADO');
     });
   }
 
@@ -2413,7 +2468,7 @@
     if(linkMode){ exitPathMode(); exitZoneMode(); }
     pendingLinkSource = null;
     document.getElementById('btn-link-mode').classList.toggle('active', linkMode);
-    setStatus(linkMode ? 'MODO VÍNCULO: selecciona el nodo origen' : 'SISTEMA LISTO');
+    setStatus(linkMode ? 'MODO ENLACE: selecciona el nodo origen' : 'SISTEMA LISTO');
     renderNodes();
   });
 
@@ -2441,13 +2496,18 @@
   document.getElementById('btn-delete-node').addEventListener('click', ()=>{
     if(!selectedNodeId) return;
     const node = getNode(selectedNodeId);
-    openConfirmModal('Se eliminará "'+node.name+'" y todos sus vínculos.', ()=>deleteNode(node.id));
+    openConfirmModal('Se eliminará "'+node.name+'" y todos sus enlaces.', ()=>deleteNode(node.id));
   });
 
   document.getElementById('btn-save-library').addEventListener('click', ()=>{
     if(!selectedNodeId) return;
     const node = getNode(selectedNodeId);
     saveNodeToLibrary(node);
+  });
+
+  document.getElementById('btn-duplicate-node').addEventListener('click', ()=>{
+    if(!selectedNodeId) return;
+    duplicateNode(getNode(selectedNodeId));
   });
 
   function toggleArchivePanel(){
@@ -2484,7 +2544,7 @@
       renderNodes();
     } else if(linkMode && pendingLinkSource){
       pendingLinkSource = null;
-      setStatus('MODO VÍNCULO: selecciona el nodo origen');
+      setStatus('MODO ENLACE: selecciona el nodo origen');
       renderNodes();
     } else if(!linkMode && !pathMode && !zoneMode){
       selectedZoneIds.clear();
@@ -2535,7 +2595,8 @@
         ${[0,1,2,3,4,5].map(n=>'<option value="'+n+'" '+(filters.minTrust===n?'selected':'')+'>'+(n===0?'Cualquiera':n)+'</option>').join('')}
       </select>
       <hr>
-      <label class="filter-check"><input type="checkbox" id="filter-orphans" ${filters.onlyOrphans?'checked':''}> Solo huérfanos (sin vínculos)</label>
+      <label class="filter-check"><input type="checkbox" id="filter-orphans" ${filters.onlyOrphans?'checked':''}> Solo huérfanos (sin enlaces)</label>
+      <label class="filter-check"><input type="checkbox" id="filter-hide-edge-labels" ${filters.hideEdgeLabels?'checked':''}> Ocultar nombre del enlace</label>
       <hr>
       <div class="menu-label">ETIQUETAS</div>
       <div class="tag-toggle-list">
@@ -2560,6 +2621,9 @@
     document.getElementById('filter-orphans').addEventListener('change', (e)=>{
       filters.onlyOrphans = e.target.checked; renderVisible();
     });
+    document.getElementById('filter-hide-edge-labels').addEventListener('change', (e)=>{
+      filters.hideEdgeLabels = e.target.checked; renderVisible();
+    });
     filterPanel.querySelectorAll('.tag-toggle').forEach(chip=>chip.addEventListener('click', ()=>{
       const t = chip.dataset.tag;
       if(filters.tags.has(t)) filters.tags.delete(t); else filters.tags.add(t);
@@ -2567,7 +2631,7 @@
       renderVisible();
     }));
     document.getElementById('btn-clear-filters').addEventListener('click', ()=>{
-      filters = { types:new Set(TYPES), statuses:new Set(STATUSES), minTrust:0, onlyOrphans:false, tags:new Set() };
+      filters = { types:new Set(TYPES), statuses:new Set(STATUSES), minTrust:0, onlyOrphans:false, hideEdgeLabels:false, tags:new Set() };
       buildFilterPanel();
       renderVisible();
     });
@@ -3135,8 +3199,8 @@
       text: 'El botón azul grande de abajo (o "+ NODO") crea un contacto, lugar u organización. Arrástralo para moverlo. Ctrl+clic o un rectángulo de arrastre sobre el mapa vacío selecciona varios nodos a la vez — puedes moverlos juntos o borrarlos con Supr.'
     },
     {
-      title: 'VINCULAR Y CAMINO',
-      text: '"VINCULAR" conecta dos nodos con una relación etiquetada (clic en el origen, clic en el destino). "CAMINO" calcula la ruta más corta entre dos nodos siguiendo los vínculos existentes.'
+      title: 'ENLAZAR Y CAMINO',
+      text: '"ENLAZAR" conecta dos nodos con una relación etiquetada (clic en el origen, clic en el destino; atajo: L). "CAMINO" calcula la ruta más corta entre dos nodos siguiendo los enlaces existentes.'
     },
     {
       title: 'ZONAS',
